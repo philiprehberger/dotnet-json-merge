@@ -42,23 +42,33 @@ var result = JsonMerge.MergeAll(defaults, environment, local);
 
 ### `JsonMerge`
 
-- `Merge(JsonNode baseNode, JsonNode overrideNode)` — Deep merges two JSON documents. Override values win for scalars.
-- `Merge(JsonNode baseNode, JsonNode overrideNode, MergeOptions options)` — Merges with custom options.
-- `MergeAll(params JsonNode[] nodes)` — Merges multiple documents left to right.
+| Method | Description |
+|--------|-------------|
+| `Merge(JsonNode baseNode, JsonNode overrideNode)` | Deep merges two JSON documents. Override values win for scalars. |
+| `Merge(JsonNode baseNode, JsonNode overrideNode, MergeOptions options)` | Merges with custom options. |
+| `MergeAll(params JsonNode[] nodes)` | Merges multiple documents left to right. |
 
 ### `MergeOptions`
 
-Record with two properties:
-- `ArrayStrategy` — How to handle array merges: `Replace` (default), `Concat`, `Union`.
-- `NullHandling` — How to handle null values: `Keep` (default), `Remove`.
+| Property | Description |
+|----------|-------------|
+| `ArrayStrategy` | How to handle array merges: `Replace` (default), `Concat`, `Union`. |
+| `NullHandling` | How to handle null values: `Keep` (default), `Remove`. |
 
 ### `ArrayStrategy`
 
-Enum: `Replace`, `Concat`, `Union`.
+| Value | Description |
+|-------|-------------|
+| `Replace` | Replace base array with override array. |
+| `Concat` | Concatenate both arrays. |
+| `Union` | Union of both arrays. |
 
 ### `NullHandling`
 
-Enum: `Keep`, `Remove`.
+| Value | Description |
+|-------|-------------|
+| `Keep` | Keep null values in the result. |
+| `Remove` | Remove null values from the result. |
 
 ## Development
 
@@ -68,4 +78,4 @@ dotnet build src/Philiprehberger.JsonMerge.csproj --configuration Release
 
 ## License
 
-[MIT](LICENSE)
+MIT
