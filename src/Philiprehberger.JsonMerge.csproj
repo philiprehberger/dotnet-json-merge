@@ -10,7 +10,7 @@
     <RootNamespace>Philiprehberger.JsonMerge</RootNamespace>
 
     <PackageId>Philiprehberger.JsonMerge</PackageId>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Authors>Philip Rehberger</Authors>
     <Description>Deep merge JSON documents with configurable array strategies and null handling using System.Text.Json.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
