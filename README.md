@@ -3,6 +3,7 @@
 [![CI](https://github.com/philiprehberger/dotnet-json-merge/actions/workflows/ci.yml/badge.svg)](https://github.com/philiprehberger/dotnet-json-merge/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/Philiprehberger.JsonMerge.svg)](https://www.nuget.org/packages/Philiprehberger.JsonMerge)
 [![License](https://img.shields.io/github/license/philiprehberger/dotnet-json-merge)](LICENSE)
+[![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20Sponsors-ec6cb9)](https://github.com/sponsors/philiprehberger)
 
 Deep merge JSON documents with configurable array strategies and null handling using System.Text.Json.
 
