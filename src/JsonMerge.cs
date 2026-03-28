@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace Philiprehberger.JsonMerge;
@@ -58,6 +59,70 @@ public static class JsonMerge
         for (var i = 2; i < nodes.Length; i++)
         {
             result = NodeMerger.MergeNodes(result, nodes[i], DefaultOptions);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Applies a JSON Merge Patch (RFC 7396) to a target JSON document.
+    /// Null values in the patch cause the corresponding key to be removed from the target.
+    /// Non-null values are set or recursively merged for objects.
+    /// </summary>
+    /// <param name="target">The target JSON document to patch.</param>
+    /// <param name="patch">The merge patch document conforming to RFC 7396.</param>
+    /// <returns>A new <see cref="JsonDocument"/> with the patch applied.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="target"/> or <paramref name="patch"/> is null.</exception>
+    public static JsonDocument MergePatch(JsonDocument target, JsonDocument patch)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(patch);
+
+        var result = ApplyMergePatch(
+            JsonNode.Parse(target.RootElement.GetRawText()),
+            patch.RootElement);
+
+        var json = result?.ToJsonString() ?? "null";
+        return JsonDocument.Parse(json);
+    }
+
+    /// <summary>
+    /// Recursively applies RFC 7396 merge patch semantics.
+    /// </summary>
+    private static JsonNode? ApplyMergePatch(JsonNode? target, JsonElement patch)
+    {
+        if (patch.ValueKind != JsonValueKind.Object)
+        {
+            // Non-object patch replaces the target entirely
+            return JsonNode.Parse(patch.GetRawText());
+        }
+
+        // If target is not an object, start with an empty object
+        JsonObject result;
+        if (target is JsonObject targetObj)
+        {
+            result = new JsonObject();
+            foreach (var kvp in targetObj)
+            {
+                result[kvp.Key] = NodeMerger.DeepClone(kvp.Value);
+            }
+        }
+        else
+        {
+            result = new JsonObject();
+        }
+
+        foreach (var property in patch.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.Null)
+            {
+                result.Remove(property.Name);
+            }
+            else
+            {
+                var existingValue = result.ContainsKey(property.Name) ? result[property.Name] : null;
+                result[property.Name] = ApplyMergePatch(existingValue, property.Value);
+            }
         }
 
         return result;

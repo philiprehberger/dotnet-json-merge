@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 (2026-03-28)
+
+- Add array element matching by key via `ArrayMatchKey` option
+- Add merge conflict callback via `OnConflict` delegate
+- Add path-based selective merge via `PathFilter` option
+- Add RFC 7396 JSON Merge Patch support via `MergePatch` method
+
 ## 0.1.2 (2026-03-24)
 
 - Add unit tests
