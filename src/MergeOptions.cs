@@ -30,6 +30,13 @@ public enum NullHandling
 }
 
 /// <summary>
+/// Defines a path-specific array merge strategy override.
+/// </summary>
+/// <param name="JsonPath">The dot-separated JSON path where this strategy applies (e.g. "config.items").</param>
+/// <param name="Strategy">The array merge strategy to use at this path.</param>
+public record PathStrategy(string JsonPath, ArrayStrategy Strategy);
+
+/// <summary>
 /// Configuration options for JSON merge operations.
 /// </summary>
 /// <param name="ArrayStrategy">The strategy for merging arrays. Defaults to <see cref="ArrayStrategy.Replace"/>.</param>
@@ -47,9 +54,31 @@ public enum NullHandling
 /// When set, only JSON paths matching the filter patterns are merged from the override document.
 /// All other paths retain their values from the base document. Supports dot-separated paths (e.g. "db.host").
 /// </param>
+/// <param name="PathStrategies">
+/// When set, overrides the default <see cref="ArrayStrategy"/> for specific JSON paths.
+/// Each entry maps a dot-separated path to an array merge strategy.
+/// </param>
 public record MergeOptions(
     ArrayStrategy ArrayStrategy = ArrayStrategy.Replace,
     NullHandling NullHandling = NullHandling.Keep,
     string? ArrayMatchKey = null,
     Func<string, JsonElement, JsonElement, JsonElement>? OnConflict = null,
-    IReadOnlyList<string>? PathFilter = null);
+    IReadOnlyList<string>? PathFilter = null,
+    IReadOnlyList<PathStrategy>? PathStrategies = null)
+{
+    /// <summary>
+    /// Creates a new <see cref="MergeOptions"/> with an additional path-specific array merge strategy.
+    /// </summary>
+    /// <param name="jsonPath">The dot-separated JSON path where the strategy applies.</param>
+    /// <param name="strategy">The array merge strategy to use at this path.</param>
+    /// <returns>A new <see cref="MergeOptions"/> instance with the path strategy added.</returns>
+    public MergeOptions WithStrategy(string jsonPath, ArrayStrategy strategy)
+    {
+        var strategies = PathStrategies is not null
+            ? new List<PathStrategy>(PathStrategies)
+            : new List<PathStrategy>();
+
+        strategies.Add(new PathStrategy(jsonPath, strategy));
+        return this with { PathStrategies = strategies };
+    }
+}

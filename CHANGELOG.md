@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 (2026-04-01)
+
+- Add path-specific merge strategies for different array handling per JSON path
+- Add dry-run merge preview returning operations without mutating documents
+- Add three-way merge with conflict detection for base/ours/theirs scenarios
+
 ## 0.2.1 (2026-03-31)
 
 - Standardize README to 3-badge format with emoji Support section

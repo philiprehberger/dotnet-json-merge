@@ -15,8 +15,9 @@ internal static class NodeMerger
     /// <param name="overrideNode">The override node whose values take precedence.</param>
     /// <param name="options">The merge options.</param>
     /// <param name="currentPath">The current JSON path for conflict callbacks and path filtering.</param>
+    /// <param name="operations">Optional list to collect merge operations for preview mode.</param>
     /// <returns>A new merged <see cref="JsonNode"/>.</returns>
-    internal static JsonNode? MergeNodes(JsonNode? baseNode, JsonNode? overrideNode, MergeOptions options, string currentPath = "")
+    internal static JsonNode? MergeNodes(JsonNode? baseNode, JsonNode? overrideNode, MergeOptions options, string currentPath = "", List<MergeOperation>? operations = null)
     {
         if (overrideNode is null)
         {
@@ -30,12 +31,12 @@ internal static class NodeMerger
 
         if (baseNode is JsonObject baseObj && overrideNode is JsonObject overrideObj)
         {
-            return MergeObjects(baseObj, overrideObj, options, currentPath);
+            return MergeObjects(baseObj, overrideObj, options, currentPath, operations);
         }
 
         if (baseNode is JsonArray baseArr && overrideNode is JsonArray overrideArr)
         {
-            return MergeArrays(baseArr, overrideArr, options, currentPath);
+            return MergeArrays(baseArr, overrideArr, options, currentPath, operations);
         }
 
         // Scalar conflict: invoke callback if provided
@@ -44,14 +45,19 @@ internal static class NodeMerger
             var baseElement = JsonSerializer.Deserialize<JsonElement>(baseNode.ToJsonString());
             var overrideElement = JsonSerializer.Deserialize<JsonElement>(overrideNode.ToJsonString());
             var resolved = options.OnConflict(currentPath, baseElement, overrideElement);
+
+            operations?.Add(new MergeOperation(currentPath, MergeOperationKind.Replace, baseNode.ToJsonString(), overrideNode.ToJsonString()));
+
             return JsonNode.Parse(resolved.GetRawText());
         }
 
         // Scalar override wins
+        operations?.Add(new MergeOperation(currentPath, MergeOperationKind.Replace, baseNode.ToJsonString(), overrideNode.ToJsonString()));
+
         return DeepClone(overrideNode);
     }
 
-    private static JsonObject MergeObjects(JsonObject baseObj, JsonObject overrideObj, MergeOptions options, string currentPath)
+    private static JsonObject MergeObjects(JsonObject baseObj, JsonObject overrideObj, MergeOptions options, string currentPath, List<MergeOperation>? operations)
     {
         var result = new JsonObject();
 
@@ -74,16 +80,22 @@ internal static class NodeMerger
 
             if (kvp.Value is null && options.NullHandling == NullHandling.Remove)
             {
+                if (result.ContainsKey(kvp.Key))
+                {
+                    operations?.Add(new MergeOperation(childPath, MergeOperationKind.Remove, result[kvp.Key]?.ToJsonString(), null));
+                }
+
                 result.Remove(kvp.Key);
                 continue;
             }
 
             if (result.ContainsKey(kvp.Key))
             {
-                result[kvp.Key] = MergeNodes(result[kvp.Key], kvp.Value, options, childPath);
+                result[kvp.Key] = MergeNodes(result[kvp.Key], kvp.Value, options, childPath, operations);
             }
             else
             {
+                operations?.Add(new MergeOperation(childPath, MergeOperationKind.Add, null, kvp.Value?.ToJsonString()));
                 result[kvp.Key] = DeepClone(kvp.Value);
             }
         }
@@ -109,15 +121,21 @@ internal static class NodeMerger
         return false;
     }
 
-    private static JsonArray MergeArrays(JsonArray baseArr, JsonArray overrideArr, MergeOptions options, string currentPath)
+    private static JsonArray MergeArrays(JsonArray baseArr, JsonArray overrideArr, MergeOptions options, string currentPath, List<MergeOperation>? operations)
     {
         // If ArrayMatchKey is set and arrays contain objects, merge by key
         if (!string.IsNullOrEmpty(options.ArrayMatchKey))
         {
-            return MergeArraysByKey(baseArr, overrideArr, options, currentPath);
+            operations?.Add(new MergeOperation(currentPath, MergeOperationKind.ArrayMerge, baseArr.ToJsonString(), overrideArr.ToJsonString()));
+            return MergeArraysByKey(baseArr, overrideArr, options, currentPath, operations);
         }
 
-        return options.ArrayStrategy switch
+        // Resolve the effective strategy: path-specific overrides take priority
+        var effectiveStrategy = ResolveArrayStrategy(options, currentPath);
+
+        operations?.Add(new MergeOperation(currentPath, MergeOperationKind.ArrayMerge, baseArr.ToJsonString(), overrideArr.ToJsonString()));
+
+        return effectiveStrategy switch
         {
             ArrayStrategy.Concat => ConcatArrays(baseArr, overrideArr),
             ArrayStrategy.Union => UnionArrays(baseArr, overrideArr),
@@ -125,7 +143,26 @@ internal static class NodeMerger
         };
     }
 
-    private static JsonArray MergeArraysByKey(JsonArray baseArr, JsonArray overrideArr, MergeOptions options, string currentPath)
+    /// <summary>
+    /// Resolves the effective array strategy for the given path, checking path-specific overrides first.
+    /// </summary>
+    private static ArrayStrategy ResolveArrayStrategy(MergeOptions options, string currentPath)
+    {
+        if (options.PathStrategies is not null && !string.IsNullOrEmpty(currentPath))
+        {
+            foreach (var ps in options.PathStrategies)
+            {
+                if (string.Equals(currentPath, ps.JsonPath, StringComparison.Ordinal))
+                {
+                    return ps.Strategy;
+                }
+            }
+        }
+
+        return options.ArrayStrategy;
+    }
+
+    private static JsonArray MergeArraysByKey(JsonArray baseArr, JsonArray overrideArr, MergeOptions options, string currentPath, List<MergeOperation>? operations)
     {
         var key = options.ArrayMatchKey!;
         var result = new JsonArray();
@@ -153,7 +190,7 @@ internal static class NodeMerger
                 if (overrideIndex.TryGetValue(keyValue, out var overrideItem))
                 {
                     var elementPath = string.IsNullOrEmpty(currentPath) ? $"[{keyValue}]" : $"{currentPath}[{keyValue}]";
-                    result.Add(MergeNodes(item, overrideItem, options, elementPath));
+                    result.Add(MergeNodes(item, overrideItem, options, elementPath, operations));
                     matched.Add(keyValue);
                 }
                 else

@@ -65,6 +65,60 @@ public static class JsonMerge
     }
 
     /// <summary>
+    /// Performs a dry-run merge preview, returning the merged result along with a list
+    /// of all operations that would be applied without modifying the original documents.
+    /// </summary>
+    /// <param name="baseNode">The base JSON document.</param>
+    /// <param name="overrideNode">The override JSON document whose values take precedence.</param>
+    /// <returns>A <see cref="MergePreview"/> containing the merged result and the list of operations.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="baseNode"/> is null.</exception>
+    public static MergePreview PreviewMerge(JsonNode baseNode, JsonNode overrideNode)
+    {
+        ArgumentNullException.ThrowIfNull(baseNode);
+        return PreviewMerge(baseNode, overrideNode, DefaultOptions);
+    }
+
+    /// <summary>
+    /// Performs a dry-run merge preview with custom options, returning the merged result
+    /// along with a list of all operations that would be applied.
+    /// </summary>
+    /// <param name="baseNode">The base JSON document.</param>
+    /// <param name="overrideNode">The override JSON document whose values take precedence.</param>
+    /// <param name="options">The merge options controlling array and null handling.</param>
+    /// <returns>A <see cref="MergePreview"/> containing the merged result and the list of operations.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="baseNode"/> or <paramref name="options"/> is null.</exception>
+    public static MergePreview PreviewMerge(JsonNode baseNode, JsonNode overrideNode, MergeOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(baseNode);
+        ArgumentNullException.ThrowIfNull(options);
+
+        var operations = new List<MergeOperation>();
+        var result = NodeMerger.MergeNodes(baseNode, overrideNode, options, "", operations);
+        return new MergePreview(result, operations);
+    }
+
+    /// <summary>
+    /// Performs a three-way merge using a common base document. Changes from both "ours"
+    /// and "theirs" relative to the base are merged automatically. When both sides change
+    /// the same path to different values, a conflict is reported and the "ours" value is used.
+    /// </summary>
+    /// <param name="baseNode">The common ancestor document.</param>
+    /// <param name="ours">The "ours" document with local changes.</param>
+    /// <param name="theirs">The "theirs" document with remote changes.</param>
+    /// <returns>A <see cref="ThreeWayMergeResult"/> with the merged document and any conflicts.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when any parameter is null.</exception>
+    public static ThreeWayMergeResult MergeThreeWay(JsonNode baseNode, JsonNode ours, JsonNode theirs)
+    {
+        ArgumentNullException.ThrowIfNull(baseNode);
+        ArgumentNullException.ThrowIfNull(ours);
+        ArgumentNullException.ThrowIfNull(theirs);
+
+        var conflicts = new List<MergeConflict>();
+        var result = ThreeWayMerger.Merge(baseNode, ours, theirs, "", conflicts);
+        return new ThreeWayMergeResult(result, conflicts);
+    }
+
+    /// <summary>
     /// Applies a JSON Merge Patch (RFC 7396) to a target JSON document.
     /// Null values in the patch cause the corresponding key to be removed from the target.
     /// Non-null values are set or recursively merged for objects.
